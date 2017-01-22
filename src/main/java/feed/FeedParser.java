@@ -49,9 +49,10 @@ public class FeedParser {
 
 			// First create a new XMLInputFactory
 			XMLInputFactory inputFactory = XMLInputFactory.newInstance();
+			inputFactory.setProperty(XMLInputFactory.IS_COALESCING, true);
 			// Setup a new eventReader
 			InputStream in = read();
-			XMLEventReader eventReader = inputFactory.createXMLEventReader(in);
+			XMLEventReader eventReader = inputFactory.createXMLEventReader(in, "UTF-8");
 			// read the XML document
 			while (eventReader.hasNext()) {
 				XMLEvent event = eventReader.nextEvent();

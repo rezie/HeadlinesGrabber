@@ -41,11 +41,11 @@ public class HeadlinesSpeechlet implements Speechlet {
     static 
     {
         SITE_URLS = new HashMap<>();
-        SITE_URLS.put("The New York Times", "http://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml");   
-        SITE_URLS.put("NPR", "www.npr.org/rss/rss.php?id=1001");
+        SITE_URLS.put("the new york times", "http://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml");   
+        SITE_URLS.put("npr", "www.npr.org/rss/rss.php?id=1001");
     }
 
-    private static final String SLOT_SITE = "site";
+    private static final String SLOT_SITE = "Site";
 
 
     @Override
@@ -118,7 +118,7 @@ public class HeadlinesSpeechlet implements Speechlet {
         // If the user either does not reply to the welcome message or says something that is not
         // understood, they will be prompted again with this text.
         String repromptText =
-                "With Headlines Grabber, you can ask for the headlines of various site. "
+                "With headlines grabber, you can ask for the headlines of various site. "
                         + " For example, you could say get me the headlines for The New York Times."
                         + " Now, which site do you want to hear from?";
 
@@ -138,30 +138,27 @@ public class HeadlinesSpeechlet implements Speechlet {
      */
     private SpeechletResponse handleFirstEventRequest(Intent intent, Session session) {
         Slot site = intent.getSlot(SLOT_SITE);
-        SsmlOutputSpeech outputSpeech = new SsmlOutputSpeech();
 
         String siteName = site.getValue();
-        String siteUrl = SITE_URLS.get(siteName);
-        String output = "Here are your headlines from" + siteName;
+        String siteUrl = SITE_URLS.get(siteName.toLowerCase());
+        String output = "Here are your headlines from " + siteName;
         String repromptText = "Which site would you like to hear from?";
+        
+        log.info("handleFirstEventRequest siteUrl={}", siteUrl);
         
         FeedParser parser = new FeedParser(siteUrl);
         Feed feed = parser.readFeed();
 
-        log.info(feed.toString());
-
         for (FeedMessage message : feed.getMessages()) {
-            log.info(message.toString());
+            log.info(message.getTitle());
             output += "<p>";
             output += message.getTitle();
             output += "</p>";
         }
         
-        outputSpeech.setSsml("<speak>" + output + "</speak>");
         SpeechletResponse response = newAskResponse("<speak>" + output + "</speak>", true, repromptText, false);
         return response;
     }
-
 
     /**
      * Wrapper for creating the Ask response from the input strings.
