@@ -1,0 +1,13 @@
+{
+  "intents": [
+    {
+      "intent": "GetHeadlines",
+      "slots": [
+        {
+          "name": "Site",
+          "type": "LIST_OF_SITES"
+        }
+      ]
+    }
+  ]
+}
