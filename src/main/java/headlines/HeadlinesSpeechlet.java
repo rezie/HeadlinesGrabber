@@ -9,6 +9,9 @@
  */
 package headlines;
 
+import java.io.*;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,14 +39,9 @@ import feed.FeedParser;
 
 public class HeadlinesSpeechlet implements Speechlet {
     private static final Logger log = LoggerFactory.getLogger(HeadlinesSpeechlet.class);
-
-    private static final Map<String, String> SITE_URLS;
-    static 
-    {
-        SITE_URLS = new HashMap<>();
-        SITE_URLS.put("the new york times", "http://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml");   
-        SITE_URLS.put("npr", "www.npr.org/rss/rss.php?id=1001");
-    }
+    private static final String CSV_DELIMITER = ",";
+    private static final String RSS_URL = "https://github.com/rezie/HeadlinesGrabber/blob/master/rss.csv";
+    private static Map<String, String> RSS_URLS;
 
     private static final String SLOT_SITE = "Site";
 
@@ -54,7 +52,46 @@ public class HeadlinesSpeechlet implements Speechlet {
         log.info("onSessionStarted requestId={}, sessionId={}", request.getRequestId(),
                 session.getSessionId());
 
+        TryParseRssFeeds();
+    }
+
+    private void TryParseRssFeeds() throws SpeechletException{
+        BufferedReader br;
+
         // any initialization logic goes here
+        try {
+            // Grab the newest copy from github
+            URL site = new URL(RSS_URL);
+            InputStream in = site.openStream();
+            br = new BufferedReader(new InputStreamReader(in));
+            ParseRssFeeds(br);
+
+        } catch (IOException ex) {
+            try {
+                // Fallback - use the packaged file
+                InputStream in = new FileInputStream("rss.csv");
+                br = new BufferedReader(new InputStreamReader(in));
+                ParseRssFeeds(br);
+            } catch (FileNotFoundException e1) {
+                // The RSS file is neither available from github nor from the package for some strange reason
+                br = null;
+                throw new SpeechletException(e1);
+            }
+        }
+    }
+
+    private void ParseRssFeeds(BufferedReader br) throws SpeechletException {
+        String curr;
+
+        RSS_URLS = new HashMap<>();
+        try{
+            while((curr = br.readLine()) != null){
+                String[] line = curr.split(CSV_DELIMITER);
+                RSS_URLS.put(line[0],line[1]);
+            }
+        } catch (IOException e) {
+            throw new SpeechletException(e);
+        }
     }
 
     @Override
@@ -140,20 +177,26 @@ public class HeadlinesSpeechlet implements Speechlet {
         Slot site = intent.getSlot(SLOT_SITE);
 
         String siteName = site.getValue();
-        String siteUrl = SITE_URLS.get(siteName.toLowerCase());
-        String output = "Here are your headlines from " + siteName;
+        String siteUrl = RSS_URLS.get(siteName.toLowerCase());
         String repromptText = "Which site would you like to hear from?";
-        
-        log.info("handleFirstEventRequest siteUrl={}", siteUrl);
-        
-        FeedParser parser = new FeedParser(siteUrl);
-        Feed feed = parser.readFeed();
+        String output;
 
-        for (FeedMessage message : feed.getMessages()) {
-            log.info(message.getTitle());
-            output += "<p>";
-            output += message.getTitle();
-            output += "</p>";
+        if(siteUrl == null){
+            output = "Sorry, the site you have requested is not currently supported. If you would like to request support, please notify the developer of this skill.";
+        } else {
+            output = "Here are your headlines from " + siteName;
+            log.info("handleFirstEventRequest siteUrl={}", siteUrl);
+
+
+            FeedParser parser = new FeedParser(siteUrl);
+            Feed feed = parser.readFeed();
+
+            for (FeedMessage message : feed.getMessages()) {
+                log.info(message.getTitle());
+                output += "<p>";
+                output += message.getTitle();
+                output += "</p>";
+            }
         }
         
         SpeechletResponse response = newAskResponse("<speak>" + output + "</speak>", true, repromptText, false);
